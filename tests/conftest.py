@@ -1,3 +1,5 @@
+import asyncio
+import sys
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -8,12 +10,22 @@ import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.pool import StaticPool
+from testcontainers.postgres import PostgresContainer
 
 from fast_zero.database import get_session
 from fast_zero.models import Todo, TodoState, User, table_registry
 from fast_zero.security import get_password_hash
 from src.fast_zero.app import app
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
+@pytest.fixture(scope='session')
+def event_loop():
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest.fixture
@@ -29,13 +41,16 @@ def client(session):
     app.dependency_overrides.clear()
 
 
+@pytest_asyncio.fixture(scope='session')
+async def engine():
+    with PostgresContainer('postgres:16', driver='psycopg') as postgres:
+        engine = create_async_engine(postgres.get_connection_url())
+        yield engine
+        await engine.dispose()
+
+
 @pytest_asyncio.fixture
-async def session():
-    engine = create_async_engine(
-        'sqlite+aiosqlite:///:memory:',
-        connect_args={'check_same_thread': False},
-        poolclass=StaticPool,
-    )
+async def session(engine):
     async with engine.begin() as conn:
         await conn.run_sync(table_registry.metadata.create_all)
 

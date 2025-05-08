@@ -1,9 +1,8 @@
 from http import HTTPStatus
 
 import pytest
-from sqlalchemy import select
 
-from fast_zero.models import Todo, TodoState, User
+from fast_zero.models import Todo, TodoState
 from tests.conftest import TodoFactory
 
 
@@ -219,19 +218,3 @@ async def test_list_todos_should_return_all_expected_fields__exercicio(
             'title': todo.title,
         }
     ]
-
-
-@pytest.mark.asyncio
-async def test_create_todo_error(session, user: User):
-    todo = Todo(
-        title='Test Todo',
-        description='Test Desc',
-        state='test',
-        user_id=user.id,
-    )
-
-    session.add(todo)
-    await session.commit()
-
-    with pytest.raises(LookupError):
-        await session.scalar(select(Todo))

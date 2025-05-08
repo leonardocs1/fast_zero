@@ -1,4 +1,5 @@
 import asyncio
+import  sys
 
 from logging.config import fileConfig
 
@@ -12,6 +13,9 @@ from fast_zero.settings import Settings
 
 config = context.config
 config.set_main_option('sqlalchemy.url', Settings().DATABASE_URL)
+
+if sys.platform.startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
